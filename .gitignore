@@ -1,0 +1,8 @@
+
+*.a
+test/
+test
+test.d
+
+octopus
+octopus.exe
