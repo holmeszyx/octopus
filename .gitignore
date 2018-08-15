@@ -3,6 +3,7 @@
 test/
 test
 test.d
+test.o
 
 octopus
 octopus.exe

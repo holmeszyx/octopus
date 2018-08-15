@@ -15,11 +15,13 @@ import (
 var decode = false
 var outFile string
 var inFile string
+var outToStd = false
 var keys = "a2f126e3ea0f141e52b343024f33805e" // showmethemoney10010
 
 func init() {
 	flag.BoolVar(&decode, "d", false, "is decoding")
 	flag.StringVar(&outFile, "o", "", "the output file")
+	flag.BoolVar(&outToStd, "out-std", false, "output content to std.out stream. The '-o' file will be ignore if it's set true.")
 	flag.Parse()
 	if flag.NArg() > 0 {
 		inFile = flag.Arg(0)
@@ -38,27 +40,27 @@ func main() {
 		os.Exit(2)
 	}
 
-	if outFile == "" {
-		fmt.Println("require a out file.")
-		os.Exit(3)
+	if !outToStd {
+		if outFile == "" {
+			fmt.Println("require a out file.")
+			os.Exit(3)
+		}
 	}
 
-	if decode {
-		decoding()
+	var outWriter io.Writer
+
+	if !outToStd {
+		outFileWriter, err := os.OpenFile(outFile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.FileMode(0666))
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(4)
+			return
+		}
+		defer outFileWriter.Close()
+		outWriter = outFileWriter
 	} else {
-		encoding()
+		outWriter = os.Stdout
 	}
-}
-
-func decoding() {
-
-	outWriter, err := os.OpenFile(outFile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.FileMode(0666))
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(4)
-		return
-	}
-	defer outWriter.Close()
 
 	inReader, err := os.Open(inFile)
 	defer inReader.Close()
@@ -67,6 +69,15 @@ func decoding() {
 		os.Exit(4)
 		return
 	}
+
+	if decode {
+		decoding(outWriter, inReader)
+	} else {
+		encoding(outWriter, inReader)
+	}
+}
+
+func decoding(outWriter io.Writer, inReader io.Reader) {
 
 	key, _ := hex.DecodeString(keys)
 	block, err := aes.NewCipher(key)
@@ -93,23 +104,7 @@ func decoding() {
 	r.Output(cb)
 }
 
-func encoding() {
-
-	outWriter, err := os.OpenFile(outFile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.FileMode(0666))
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(4)
-		return
-	}
-	defer outWriter.Close()
-
-	inReader, err := os.Open(inFile)
-	defer inReader.Close()
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(4)
-		return
-	}
+func encoding(outWriter io.Writer, inReader io.Reader) {
 
 	key, _ := hex.DecodeString(keys)
 	block, err := aes.NewCipher(key)
